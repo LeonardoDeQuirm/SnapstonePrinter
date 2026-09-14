@@ -92,7 +92,8 @@ fun ProxyGeneratorScreen(
 
         // Straight to the remembered printer app when it is still installed; otherwise the
         // chooser, wired up so we learn what the user picks.
-        val remembered = uiState.printerTarget?.takeIf { viewModel.isTargetUsable(it) }
+        val storedTarget = uiState.printerTarget
+        val remembered = storedTarget?.takeIf { viewModel.isTargetUsable(it) }
         val launched = if (remembered != null) {
             runCatching {
                 dispatchLauncher.launch(Intent(send).setComponent(remembered.component))
@@ -102,7 +103,11 @@ fun ProxyGeneratorScreen(
         }
 
         if (!launched) {
-            if (remembered != null) viewModel.forgetPrinterTarget()
+            // Forget a stale target whether it failed the isTargetUsable check up front (the
+            // app was uninstalled) or passed that check but still failed to actually launch -
+            // either way the persisted target is dead and the overflow menu must stop lying
+            // about it being set.
+            if (storedTarget != null) viewModel.forgetPrinterTarget()
             try {
                 dispatchLauncher.launch(
                     Intent.createChooser(
