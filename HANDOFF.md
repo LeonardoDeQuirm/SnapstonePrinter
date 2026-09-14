@@ -255,9 +255,16 @@ host needs this header. It's a per-client requirement, not a one-time intercepto
   itself is complete and uncropped — see the print-preview note below.
 - ~~Remembered `ComponentName` ... reset affordance.~~ **DONE, verified on-device 2026-09-14:**
   full remember → reuse → reset cycle confirmed working (see §1).
-- ~~Fallback path when the remembered printer app has been uninstalled.~~ Already implemented
-  (`PrinterTargetStore.isResolvable` + chooser fallback in `ProxyGeneratorScreen.kt`), but not
-  device-verified this session (would require uninstalling the target mid-session).
+- ~~Fallback path when the remembered printer app has been uninstalled.~~ **DONE, verified
+  on-device 2026-09-14.** No physical printer needed for this - it only depends on whether the
+  remembered Android app is still installed, so it was tested by remembering Drive as the target,
+  then `adb shell pm uninstall -k --user 0 com.google.android.apps.docs` (reversible: restore with
+  `pm install-existing`), then printing again. The fallback itself worked (no crash, straight to
+  chooser), but found and fixed a real gap: the stale target was never cleared from DataStore
+  when it failed `isTargetUsable` up front (only when it passed that check and then failed to
+  launch) - see `ProxyGeneratorScreen.kt`'s `storedTarget` vs `remembered` distinction. Menu now
+  correctly reverts to "Printer app: ask every time" instead of showing a dead package name
+  forever.
 
 **Analog output note:** actual thermal-printer output (as opposed to the Android print-preview
 stand-in used for on-device testing) can only be verified once the app is stable enough to run
