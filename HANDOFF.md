@@ -35,17 +35,22 @@ and instrumented held steady. Nothing is red, nothing is stubbed out, nothing wa
 - Image pipeline: auto-levels → Floyd-Steinberg → 384px mono output (`ImageProcessor`).
 - Compose UI shell: generator screen, thermal preview, DFC pager.
 
-### Half-done — the four files from the cancelled batch
+### Previously half-done, now verified on-device (2026-09-14)
 
-These were written but had never been compiled or run before this session. They **do compile
-and the suite is green**, but they are not fully wired through to a working user flow.
+The four files from the cancelled batch all compile and are wired through to a working user
+flow, confirmed on an emulator (Pixel 10 Pro XL, API 36):
 
 | File | Intended purpose | State |
 |---|---|---|
-| `image/ArtDownloader.kt` | Coil-based art fetch that returns a **software** `Bitmap` the ditherer can read pixel-by-pixel. Wraps `ImageLoader`/`ImageRequest`, rasterises any `Drawable` to `ARGB_8888`, returns `ArtResult.Success/Failure` with a logged reason instead of a bare null. | Compiles; constructed at `ProxyGeneratorViewModel.kt:133`. Believed to be the in-progress fix for the missing-art bug (see §5). Not yet verified end-to-end on device. |
-| `data/print/PrinterTargetStore.kt` | DataStore persistence of the user's chosen printer app `ComponentName`, so the chooser is shown once and subsequent prints go straight to the remembered target. | Compiles; persistence path unverified. Needs a reset affordance in the UI. |
-| `data/print/ChosenComponentReceiver.kt` | `BroadcastReceiver` for `Intent.EXTRA_CHOSEN_COMPONENT`, captures which app the user picked out of the share sheet and feeds it to `PrinterTargetStore`. | Compiles; not confirmed registered/firing. |
+| `image/ArtDownloader.kt` | Coil-based art fetch that returns a **software** `Bitmap` the ditherer can read pixel-by-pixel. Wraps `ImageLoader`/`ImageRequest`, rasterises any `Drawable` to `ARGB_8888`, returns `ArtResult.Success/Failure` with a logged reason instead of a bare null. | **Working.** The hardware-bitmap defences here were sound but were not the actual missing-art bug — see §5, now resolved. |
+| `data/print/PrinterTargetStore.kt` | DataStore persistence of the user's chosen printer app `ComponentName`, so the chooser is shown once and subsequent prints go straight to the remembered target. | **Verified.** Persists across process death/restart; confirmed via `adb logcat` (`Remembered print target: ...`) and by relaunching the app and checking the overflow-menu label. |
+| `data/print/ChosenComponentReceiver.kt` | `BroadcastReceiver` for `Intent.EXTRA_CHOSEN_COMPONENT`, captures which app the user picked out of the share sheet and feeds it to `PrinterTargetStore`. | **Verified firing.** Registered in the manifest; broadcast confirmed received and persisted on first share-sheet pick. |
 | `ui/ProxyPanels.kt` | Extracted Compose panels for the generator screen (card detail / controls / preview panels). | Compiles and renders. |
+
+Full remember → reuse → reset cycle verified: first PRINT shows the chooser, picking an app
+persists it, the next PRINT for a fresh card skips straight to that app (no chooser), and
+"Change printer app" in the overflow menu clears it and brings the chooser back. Tested against
+`com.android.bips.ImagePrintActivity` (the built-in Print Service) as the remembered target.
 
 ---
 
@@ -176,30 +181,53 @@ preview's own scrolling off. It is not redundant with the parent's scroll state.
 
 ## 5. Known open bugs
 
-### Card art missing from slips
+None currently open. See §5.1 for the one that was here as of the last handoff — it's fixed.
 
-Slips render with text but no art. `downloadBitmap` was returning `null`.
+### 5.1 RESOLVED — card art missing from slips
 
-**Prime suspect:** Coil handing back a **hardware-config** bitmap. A `Bitmap.Config.HARDWARE`
-bitmap has no CPU-readable pixel buffer, and Floyd-Steinberg is nothing but a pixel-by-pixel
-read — so the dither pass gets nothing. The fix is `allowHardware(false)`.
+Slips rendered with text but no art. `downloadBitmap` was returning `null`.
 
-**Status:** `ArtDownloader.kt` (one of the four uncommitted-feature files) appears to be
-exactly this fix mid-flight — it sets `allowHardware(false)` on both the `ImageLoader` and the
-`ImageRequest`, forces `ARGB_8888`, disables RGB565, and requests `Size.ORIGINAL`. It is
-constructed in `ProxyGeneratorViewModel.kt:133`. **It has never been verified end-to-end on a
-device.** Start here: run the app, roll a card, and check whether art now appears. If it still
-fails, `ArtDownloader` now logs a concrete failure reason instead of returning a silent null.
+The hardware-bitmap theory recorded here previously (`Bitmap.Config.HARDWARE` being unreadable
+by Floyd-Steinberg) was a real defensive fix already present in `ArtDownloader.kt`
+(`allowHardware(false)`, forced `ARGB_8888`, etc.) — but it was **not** the actual cause.
+
+**Actual root cause:** `cards.scryfall.io` (the image CDN, separate host from
+`api.scryfall.com`) enforces the same custom-User-Agent policy documented in §3.7, and rejects
+requests with a default HTTP-library User-Agent with **HTTP 400** (`rule: generic_user_agent`).
+`ArtDownloader` built its own `OkHttpClient` that never got `ScryfallHeaderInterceptor` — that
+interceptor only ever lived on `RetrofitClient`'s client, used for the JSON API. Found by
+temporarily adding `HttpLoggingInterceptor.Level.BODY` to `ArtDownloader`'s client and reading
+the JSON error body back from the CDN.
+
+**Fix:** `ArtDownloader.kt` now adds an interceptor setting `User-Agent` to
+`ScryfallHeaderInterceptor.DEFAULT_USER_AGENT` on every request (not the interceptor itself,
+since its default `Accept: application/json` is wrong for an image request). Verified on-device
+across multiple consecutive card rolls — art renders correctly every time.
+
+**Lesson for next time:** any future HTTP client added for a `*.scryfall.io`/`scryfall.com`
+host needs this header. It's a per-client requirement, not a one-time interceptor setup.
 
 ---
 
 ## 6. Remaining work
 
 ### Sharing / dispatch
-- Finish the sequential two-slip send.
-- Remembered `ComponentName` via `PrinterTargetStore` + `ChosenComponentReceiver`, plus a
-  **reset affordance** so the user can re-pick the target app.
-- Fallback path when the remembered printer app has been uninstalled.
+- ~~Finish the sequential two-slip send.~~ Code already implements this (`SlipDispatch` in
+  `ProxyGeneratorViewModel.kt` advances one URI at a time via `onSlipDispatched()`, only after
+  the previous `ACTION_SEND` activity returns). **Not yet verified on a real DFC card** — the
+  single-slip path was what got tested this session. Deliberately deferred: needs a rolled
+  transform/MDFC card to exercise, and real analog output can only be confirmed once this is on
+  a real phone with a real printer (see note below).
+- ~~Remembered `ComponentName` ... reset affordance.~~ **DONE, verified on-device 2026-09-14:**
+  full remember → reuse → reset cycle confirmed working (see §1).
+- ~~Fallback path when the remembered printer app has been uninstalled.~~ Already implemented
+  (`PrinterTargetStore.isResolvable` + chooser fallback in `ProxyGeneratorScreen.kt`), but not
+  device-verified this session (would require uninstalling the target mid-session).
+
+**Analog output note:** actual thermal-printer output (as opposed to the Android print-preview
+stand-in used for on-device testing) can only be verified once the app is stable enough to run
+on a real phone against a real Bluetooth printer. Until then, verification here is "the correct
+bitmap reached an app via `ACTION_SEND`," not "the paper came out right."
 
 ### Image controls
 - Contrast / brightness sliders that **re-dither from the cached art bitmap** — must not

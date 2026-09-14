@@ -25,23 +25,9 @@ secrets.properties
 google-services.json
 api-keys.properties
 
-# IntelliJ / Android Studio
+# IntelliJ / Android Studio — whole dir is local-machine config, never shared
 *.iml
-.idea/caches/
-.idea/libraries/
-.idea/modules.xml
-.idea/workspace.xml
-.idea/navEditor.xml
-.idea/assetWizardSettings.xml
-.idea/deploymentTargetDropDown.xml
-.idea/deploymentTargetSelector.xml
-.idea/androidTestResultsUserPreferences.xml
-.idea/shelf/
-.idea/misc.xml
-.idea/gradle.xml
-.idea/compiler.xml
-.idea/jarRepositories.xml
-.idea/runConfigurations.xml
+.idea/
 captures/
 /captures
 
