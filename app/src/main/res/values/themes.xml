@@ -1,0 +1,14 @@
+<resources>
+
+    <!--
+        The app is pure Compose: this style only exists to give the Activity a launch/window theme.
+        It used to inherit from Theme.MaterialComponents.Light, which was the ONLY reference to
+        com.google.android.material in the whole project and therefore the only reason that
+        dependency survived. Android.Material.Light.NoActionBar is in the platform, so the theme
+        now costs nothing. Compose's MaterialTheme still owns every pixel the user sees.
+        windowBackground stays transparent-free so there is no flash before the first frame.
+    -->
+    <style name="Theme.SnapstonePrinter" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>

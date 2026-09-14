@@ -1,0 +1,59 @@
+# Built application files / build output
+build/
+/build
+/app/build
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Gradle
+.gradle/
+/.gradle
+local.properties
+/local.properties
+gradle-app.setting
+.gradletasknamecache
+
+# Secrets / signing — NEVER commit
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+secrets.properties
+google-services.json
+api-keys.properties
+
+# IntelliJ / Android Studio
+*.iml
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/deploymentTargetDropDown.xml
+.idea/deploymentTargetSelector.xml
+.idea/androidTestResultsUserPreferences.xml
+.idea/shelf/
+.idea/misc.xml
+.idea/gradle.xml
+.idea/compiler.xml
+.idea/jarRepositories.xml
+.idea/runConfigurations.xml
+captures/
+/captures
+
+# NDK
+.externalNativeBuild/
+.cxx/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs / temp
+*.log
+*.hprof
+.navigation/
