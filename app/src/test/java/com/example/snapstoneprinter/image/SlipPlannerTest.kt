@@ -327,6 +327,57 @@ class SlipPlannerTest {
         assertEquals("Deal 2 damage divided as you choose.", content.oracleText)
     }
 
+    // ------------------------------------------------------------------
+    // Secondary faces - split / flip / adventure carry the OTHER face's text on the same slip,
+    // never a separate ACTION_SEND. Regression coverage for the bug where Scryfall omits
+    // oracle_text at the top level for these layouts, silently dropping the second half entirely.
+    // ------------------------------------------------------------------
+
+    @Test
+    fun testSecondaryFaces_forSplit() {
+        val content = SlipPlanner.plan(splitCard).single()
+        val ice = content.secondaryFaces.single()
+        assertEquals("Ice", ice.name)
+        assertEquals("{1}{U}", ice.manaCost)
+        assertEquals("Instant", ice.typeLine)
+        assertEquals("Tap target permanent. Draw a card.", ice.oracleText)
+        assertNull(ice.power)
+        assertNull(ice.toughness)
+    }
+
+    @Test
+    fun testSecondaryFaces_forFlip() {
+        val content = SlipPlanner.plan(flipCard).single()
+        val essence = content.secondaryFaces.single()
+        assertEquals("Erayo's Essence", essence.name)
+        assertEquals("Legendary Enchantment", essence.typeLine)
+        assertNull(essence.manaCost)
+    }
+
+    @Test
+    fun testSecondaryFaces_forAdventure() {
+        val content = SlipPlanner.plan(adventureCard).single()
+        val theft = content.secondaryFaces.single()
+        assertEquals("Petty Theft", theft.name)
+        assertEquals("{1}{U}", theft.manaCost)
+        assertEquals("Instant — Adventure", theft.typeLine)
+    }
+
+    @Test
+    fun testSecondaryFaces_emptyForTrueTwoSlipDfc() {
+        // The back face is already its own SlipContent - it must never ALSO show up as a
+        // secondary face of the front, or Insectile Aberration would print twice.
+        val (front, back) = SlipPlanner.plan(transformCard)
+        assertTrue(front.secondaryFaces.isEmpty())
+        assertTrue(back.secondaryFaces.isEmpty())
+    }
+
+    @Test
+    fun testSecondaryFaces_emptyForMeldAndNormalCards() {
+        assertTrue(SlipPlanner.plan(meldCard).single().secondaryFaces.isEmpty())
+        assertTrue(SlipPlanner.plan(normalCard).single().secondaryFaces.isEmpty())
+    }
+
     @Test
     fun testPlan_normalCardIsUnchanged() {
         val content = SlipPlanner.plan(normalCard).single()

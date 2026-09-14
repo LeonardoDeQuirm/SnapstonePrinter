@@ -26,7 +26,33 @@ data class SlipContent(
      * Full-resolution card image for THIS face (`normal`, then `large`). Never dithered - this is
      * only what the "full card" preview toggle shows next to the thermal composite.
      */
-    val fullImageUrl: String? = null
+    val fullImageUrl: String? = null,
+    /**
+     * The OTHER face(s) of a one-slip multi-face card (split / flip / adventure), printed
+     * underneath this face's own block on the SAME physical slip - these layouts share one piece
+     * of art and are never split into separate `ACTION_SEND` dispatches like a true DFC.
+     *
+     * Empty for every other card, including true two-slip DFCs (their back face is its own
+     * [SlipContent], not a [SecondaryFace] of the front).
+     */
+    val secondaryFaces: List<SecondaryFace> = emptyList()
+)
+
+/**
+ * The rules text of a face that shares a slip with another face (split / flip / adventure), e.g.
+ * "Ice" on a Fire // Ice slip, or "Stomp" on a Bonecrusher Giant slip.
+ *
+ * Deliberately NOT run through [ScryfallCard]'s `effective*` fallbacks - those exist to patch a
+ * missing top-level field from `card_faces[0]`, which is meaningless here: this face's own raw
+ * value is exactly what should print, blank or not.
+ */
+data class SecondaryFace(
+    val name: String,
+    val manaCost: String?,
+    val typeLine: String?,
+    val oracleText: String?,
+    val power: String?,
+    val toughness: String?
 )
 
 /**
@@ -123,7 +149,9 @@ object SlipPlanner {
 
     /**
      * The legacy single-slip content: everything read through the `effective*` resolvers, no label.
-     * Behaviour here is intentionally identical to the pre-multi-slip renderer.
+     * Behaviour here is intentionally identical to the pre-multi-slip renderer, PLUS
+     * [SecondaryFace] entries for split / flip / adventure so the other half's rules text isn't
+     * silently dropped (see [secondaryFacesFor]).
      */
     fun singleSlipContent(card: ScryfallCard): SlipContent = SlipContent(
         faceIndex = 0,
@@ -136,8 +164,36 @@ object SlipPlanner {
         toughness = card.effectiveToughness,
         artUrl = card.effectiveImageUrl,
         label = null,
-        fullImageUrl = card.effectiveNormalUrl
+        fullImageUrl = card.effectiveNormalUrl,
+        secondaryFaces = secondaryFacesFor(card)
     )
+
+    /**
+     * The card_faces beyond the first, for a card that stays on ONE slip (split / flip /
+     * adventure). Empty for a true two-slip DFC - [hasPerFaceArt] is the same structural test
+     * used everywhere else in this file, so a transform/modal_dfc/reversible_card never gets its
+     * back face duplicated here as well as dispatched as its own slip.
+     *
+     * Scryfall omits `oracle_text` from the top level for ALL of split / flip / adventure (only
+     * `card_faces[0].oracle_text` is reachable via the `effective*` fallback), so without this the
+     * second half of the card - Ice's ability, Stomp's spell text, Kenzo's abilities - never
+     * printed anywhere.
+     */
+    private fun secondaryFacesFor(card: ScryfallCard): List<SecondaryFace> {
+        val faces = card.card_faces ?: return emptyList()
+        if (faces.size < 2 || hasPerFaceArt(card)) return emptyList()
+        return faces.drop(1).mapNotNull { face ->
+            val name = face.name.nullIfBlank() ?: return@mapNotNull null
+            SecondaryFace(
+                name = name,
+                manaCost = face.mana_cost.nullIfBlank(),
+                typeLine = face.type_line.nullIfBlank(),
+                oracleText = face.oracle_text.nullIfBlank(),
+                power = face.power.nullIfBlank(),
+                toughness = face.toughness.nullIfBlank()
+            )
+        }
+    }
 
     /** Ordered art URLs, one per slip. Convenience for the download step in the ViewModel. */
     fun artUrls(card: ScryfallCard): List<String?> = plan(card).map { it.artUrl }

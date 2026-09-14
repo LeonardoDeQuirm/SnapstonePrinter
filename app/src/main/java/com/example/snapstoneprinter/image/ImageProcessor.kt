@@ -26,6 +26,10 @@ object ImageProcessor {
      */
     const val TRAILING_FEED_WHITESPACE_PX = 48
 
+    /** Extra vertical gap before each [SecondaryFace] block, wider than the normal 8-12px rhythm
+     *  so the other half of a split/flip/adventure card reads as visually separate. */
+    private const val SECONDARY_FACE_GAP_PX = 24f
+
     const val DEFAULT_CONTRAST = Tonemap.DEFAULT_CONTRAST
     const val DEFAULT_BRIGHTNESS = Tonemap.DEFAULT_BRIGHTNESS
 
@@ -236,6 +240,45 @@ object ImageProcessor {
             currentY += ptLayout.height
         }
 
+        // Split / flip / adventure: the other half's text goes on THIS slip, underneath, never as
+        // a separate ACTION_SEND. Extra vertical whitespace is the only separator - no rule line,
+        // to stay inside the "no borders" spec.
+        val secondaryBlocks = content.secondaryFaces.map { face ->
+            currentY += SECONDARY_FACE_GAP_PX
+
+            val faceManaCost = safeManaCost(face.manaCost)
+            val faceTitleText = face.name + (if (faceManaCost.isNotEmpty()) "  $faceManaCost" else "")
+            val faceTitleLayout = StaticLayout.Builder
+                .obtain(faceTitleText, 0, faceTitleText.length, titlePaint, textWidth)
+                .build()
+            currentY += faceTitleLayout.height + 8f
+
+            val faceTypeText = face.typeLine ?: ""
+            val faceTypeLayout = StaticLayout.Builder
+                .obtain(faceTypeText, 0, faceTypeText.length, typePaint, textWidth)
+                .build()
+            currentY += faceTypeLayout.height + 12f
+
+            val faceOracleText = face.oracleText ?: ""
+            val faceOracleLayout = StaticLayout.Builder
+                .obtain(faceOracleText, 0, faceOracleText.length, oraclePaint, textWidth)
+                .build()
+            currentY += faceOracleLayout.height
+
+            var facePtLayout: StaticLayout? = null
+            if (!face.power.isNullOrEmpty() && !face.toughness.isNullOrEmpty()) {
+                currentY += 8f
+                val facePtText = "${face.power}/${face.toughness}"
+                facePtLayout = StaticLayout.Builder
+                    .obtain(facePtText, 0, facePtText.length, ptPaint, textWidth)
+                    .setAlignment(Layout.Alignment.ALIGN_OPPOSITE)
+                    .build()
+                currentY += facePtLayout.height
+            }
+
+            SecondaryFaceLayout(faceTitleLayout, faceTypeLayout, faceOracleLayout, facePtLayout)
+        }
+
         currentY += padding.toFloat()
         // Trailing blank feed so the tear-off never clips the last line. Per slip.
         currentY += TRAILING_FEED_WHITESPACE_PX
@@ -288,10 +331,50 @@ object ImageProcessor {
             canvas.translate(padding.toFloat(), drawY)
             ptLayout.draw(canvas)
             canvas.restore()
+            drawY += ptLayout.height
+        }
+
+        secondaryBlocks.forEach { block ->
+            drawY += SECONDARY_FACE_GAP_PX
+
+            canvas.save()
+            canvas.translate(padding.toFloat(), drawY)
+            block.titleLayout.draw(canvas)
+            canvas.restore()
+            drawY += block.titleLayout.height + 8f
+
+            canvas.save()
+            canvas.translate(padding.toFloat(), drawY)
+            block.typeLayout.draw(canvas)
+            canvas.restore()
+            drawY += block.typeLayout.height + 12f
+
+            canvas.save()
+            canvas.translate(padding.toFloat(), drawY)
+            block.oracleLayout.draw(canvas)
+            canvas.restore()
+            drawY += block.oracleLayout.height
+
+            if (block.ptLayout != null) {
+                drawY += 8f
+                canvas.save()
+                canvas.translate(padding.toFloat(), drawY)
+                block.ptLayout.draw(canvas)
+                canvas.restore()
+                drawY += block.ptLayout.height
+            }
         }
 
         return resultBitmap
     }
+
+    /** Measured layouts for one [SecondaryFace] block, reused between the measure and draw passes. */
+    private data class SecondaryFaceLayout(
+        val titleLayout: StaticLayout,
+        val typeLayout: StaticLayout,
+        val oracleLayout: StaticLayout,
+        val ptLayout: StaticLayout?
+    )
 
     /**
      * Formats a mana cost for the title line, degrading gracefully instead of failing the render.
