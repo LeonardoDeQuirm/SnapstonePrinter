@@ -12,6 +12,7 @@ import coil.request.ErrorResult
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import coil.size.Size
+import com.example.snapstoneprinter.data.api.ScryfallHeaderInterceptor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -56,6 +57,16 @@ class ArtDownloader(context: Context) {
             .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .callTimeout(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
+            // cards.scryfall.io enforces the same "no default HTTP-library User-Agent" rule as
+            // api.scryfall.com (rejects with HTTP 400, rule=generic_user_agent). This client is
+            // separate from RetrofitClient's, so it needs its own copy of the header.
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("User-Agent", ScryfallHeaderInterceptor.DEFAULT_USER_AGENT)
+                        .build()
+                )
+            }
             .build()
     }
 
