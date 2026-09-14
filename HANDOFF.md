@@ -207,10 +207,10 @@ it prints twice.
   `ACTION_SEND_MULTIPLE` — the cheap BT printer apps this targets mishandle it (drop the
   second image or print garbage).
 
-**Pending cosmetic request (2026-09-14, not yet done):** mana cost on the title line currently
-sits right next to the name (`renderSlip`'s `titleText = name + "  " + manaCost`). User wants it
-right-justified instead — cost flush to the right edge, name flush left, matching how physical
-MTG cards and the reference Pi project (§7) lay out name+cost. Explicitly deferred, low priority.
+- ~~Mana cost right-justify.~~ **DONE 2026-09-14.** `ImageProcessor.buildTitleRow` now lays out
+  name (flush left, width-capped so it wraps instead of colliding) and cost (flush right, same
+  `ALIGN_OPPOSITE` technique as the power/toughness line) as two independent `StaticLayout`s.
+  Applies to both the primary face and every `secondaryFaces` block.
 
 ---
 
