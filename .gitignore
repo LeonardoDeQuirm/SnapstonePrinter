@@ -43,3 +43,6 @@ Thumbs.db
 *.log
 *.hprof
 .navigation/
+
+# Raw source art dropped in for processing into real Android resources — not shipped as-is
+/icon-source/
