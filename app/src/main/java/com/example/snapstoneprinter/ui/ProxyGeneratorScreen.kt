@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.Landscape
 import androidx.compose.material.icons.rounded.LinkOff
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Print
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -70,6 +71,7 @@ fun ProxyGeneratorScreen(
 
     var showToneSheet by remember { mutableStateOf(false) }
     var showHistorySheet by remember { mutableStateOf(false) }
+    var showSearchSheet by remember { mutableStateOf(false) }
 
     // Hoisted so the "Print" action in the bottom bar always targets the slip the user is
     // actually looking at in the pager.
@@ -126,6 +128,7 @@ fun ProxyGeneratorScreen(
                 onToggleFunny = viewModel::toggleIsFunny,
                 onOpenTone = { showToneSheet = true },
                 onOpenHistory = { showHistorySheet = true },
+                onOpenSearch = { showSearchSheet = true },
                 onForgetTarget = viewModel::forgetPrinterTarget
             )
         },
@@ -239,6 +242,17 @@ fun ProxyGeneratorScreen(
             onDismiss = { showHistorySheet = false }
         )
     }
+
+    if (showSearchSheet) {
+        CardSearchSheet(
+            isLoading = uiState.isLoading,
+            onSearch = {
+                showSearchSheet = false
+                viewModel.fetchCardByName(it)
+            },
+            onDismiss = { showSearchSheet = false }
+        )
+    }
 }
 
 /**
@@ -277,6 +291,7 @@ private fun ProxyTopBar(
     onToggleFunny: (Boolean) -> Unit,
     onOpenTone: () -> Unit,
     onOpenHistory: () -> Unit,
+    onOpenSearch: () -> Unit,
     onForgetTarget: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -325,6 +340,14 @@ private fun ProxyTopBar(
                         onClick = {
                             menuExpanded = false
                             onFetchNonLand()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Find card by name") },
+                        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                        onClick = {
+                            menuExpanded = false
+                            onOpenSearch()
                         }
                     )
                     HorizontalDivider()

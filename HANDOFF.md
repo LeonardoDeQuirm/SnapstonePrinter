@@ -19,11 +19,12 @@ Package: `com.example.snapstoneprinter` · Module: `:app` · Single-module Gradl
 | Check | Result |
 |---|---|
 | `:app:assembleDebug` | ✅ SUCCESS |
-| `:app:testDebugUnitTest` | ✅ **67 passed**, 0 failed, 0 skipped |
+| `:app:testDebugUnitTest` | ✅ **74 passed**, 0 failed, 0 skipped |
 | `:app:connectedDebugAndroidTest` | ✅ **31 passed**, 0 failed (Pixel 10 Pro XL, API 36) |
 
-Baselines going into this session were 63 unit / 31 instrumented, so unit coverage grew by 4
-and instrumented held steady. Nothing is red, nothing is stubbed out, nothing was disabled.
+Baseline going into the 2026-09-14 session was 67 unit / 31 instrumented (itself up from 63/31);
+this session added 7 more unit tests (5 for `secondaryFaces`, 2 for the named-lookup repository
+method). Instrumented held steady. Nothing is red, nothing is stubbed out, nothing was disabled.
 
 ### Finished
 
@@ -34,6 +35,14 @@ and instrumented held steady. Nothing is red, nothing is stubbed out, nothing wa
 - Mana cost formatting (`ManaCostFormatter`).
 - Image pipeline: auto-levels → Floyd-Steinberg → 384px mono output (`ImageProcessor`).
 - Compose UI shell: generator screen, thermal preview, DFC pager.
+- **Find card by name** (2026-09-14): `cards/named?fuzzy=` lookup
+  (`ScryfallApiService.getCardByName` / `CardRepository.getCardByName` /
+  `ProxyGeneratorViewModel.fetchCardByName`), exposed via a "Find card by name" menu item and
+  `CardSearchSheet`. Shipped as a real feature, not just test scaffolding: it's the only
+  practical way to force-generate a specific split/flip/adventure/transform/modal_dfc card
+  instead of waiting on `cards/random` RNG, and it doubles as a general "look up a specific card"
+  feature for the user. Skips the junk-layout reroll in `fetchPlayableCard` — an explicit name
+  lookup should return exactly what was asked for, tokens/emblems included.
 
 ### Previously half-done, now verified on-device (2026-09-14)
 
@@ -162,6 +171,27 @@ Prevents an **"infinity maximum height constraints"** crash caused by nesting a 
 scrollable preview inside another vertical scroller. The flag lets the caller turn the
 preview's own scrolling off. It is not redundant with the parent's scroll state.
 
+### 3.11 Split / flip / adventure carry their OTHER face's text on the SAME slip (2026-09-14)
+
+Scryfall omits `oracle_text` from the top level for split / flip / adventure — confirmed against
+live data for Fire // Ice, Bonecrusher Giant // Stomp, and Bushi Tenderfoot // Kenzo. Before this
+fix, `SlipContent.oracleText` (via `ScryfallCard.effectiveOracleText`) fell back to
+`card_faces[0]` only, so the ENTIRE second half of the card — Ice's ability, Stomp's spell text,
+Kenzo's abilities — silently never printed anywhere. Flip cards also lost the back face's
+power/toughness the same way.
+
+**Fix:** `SlipContent.secondaryFaces: List<SecondaryFace>` (see `SlipPlanner.secondaryFacesFor`)
+carries the other face(s)' own raw name/cost/type/text/P-T — deliberately NOT run through the
+`effective*` fallbacks, since those exist to patch a MISSING field, not to represent a face that
+has its own real value. `ImageProcessor.renderSlip` draws each one underneath the primary
+face's content, on the same bitmap, with generous vertical spacing (`SECONDARY_FACE_GAP_PX`) as
+the only separator — deliberately no rule/divider line, to stay inside the "no borders" rule in
+§2.
+
+**Structural guard:** `secondaryFacesFor` returns empty whenever `hasPerFaceArt(card)` is true —
+i.e. a true two-slip DFC's back face must never ALSO appear as a secondary face of the front, or
+it prints twice.
+
 ---
 
 ## 4. Approved UX decisions
@@ -176,6 +206,11 @@ preview's own scrolling off. It is not redundant with the parent's scroll state.
 - **Two-slip cards dispatch as TWO SEQUENTIAL `ACTION_SEND` calls.** Never
   `ACTION_SEND_MULTIPLE` — the cheap BT printer apps this targets mishandle it (drop the
   second image or print garbage).
+
+**Pending cosmetic request (2026-09-14, not yet done):** mana cost on the title line currently
+sits right next to the name (`renderSlip`'s `titleText = name + "  " + manaCost`). User wants it
+right-justified instead — cost flush to the right edge, name flush left, matching how physical
+MTG cards and the reference Pi project (§7) lay out name+cost. Explicitly deferred, low priority.
 
 ---
 
@@ -212,12 +247,12 @@ host needs this header. It's a per-client requirement, not a one-time intercepto
 ## 6. Remaining work
 
 ### Sharing / dispatch
-- ~~Finish the sequential two-slip send.~~ Code already implements this (`SlipDispatch` in
-  `ProxyGeneratorViewModel.kt` advances one URI at a time via `onSlipDispatched()`, only after
-  the previous `ACTION_SEND` activity returns). **Not yet verified on a real DFC card** — the
-  single-slip path was what got tested this session. Deliberately deferred: needs a rolled
-  transform/MDFC card to exercise, and real analog output can only be confirmed once this is on
-  a real phone with a real printer (see note below).
+- ~~Finish the sequential two-slip send.~~ **DONE, verified on-device 2026-09-14** against a real
+  transform card (Delver of Secrets // Insectile Aberration, fetched via the new "Find card by
+  name" feature — see §4). Slip 1 dispatched, and as soon as its `ACTION_SEND` activity returned,
+  slip 2 fired automatically with its own art and the correct back-face label ("Transforms from:
+  Delver of Secrets"). Confirmed via the in-app pager (swipe to slip 2) that the composed bitmap
+  itself is complete and uncropped — see the print-preview note below.
 - ~~Remembered `ComponentName` ... reset affordance.~~ **DONE, verified on-device 2026-09-14:**
   full remember → reuse → reset cycle confirmed working (see §1).
 - ~~Fallback path when the remembered printer app has been uninstalled.~~ Already implemented
@@ -229,13 +264,28 @@ stand-in used for on-device testing) can only be verified once the app is stable
 on a real phone against a real Bluetooth printer. Until then, verification here is "the correct
 bitmap reached an app via `ACTION_SEND`," not "the paper came out right."
 
+**Print-preview widget quirk (not a bug):** the stock Android `com.android.printspooler`
+preview can show a slip's leading edge cut off (text/art missing their first ~1-2 characters or
+columns) when it's re-used across two sequential print jobs in a row — it appears to carry over
+a horizontal scroll/pan position from the previous job's preview. Confirmed this is a viewport
+artifact, not a real crop: the same slip's share-sheet thumbnail and the app's own in-app pager
+both render it complete and uncropped. Don't chase this as a rendering bug if it's seen again in
+that specific widget.
+
 ### Image controls
-- Contrast / brightness sliders that **re-dither from the cached art bitmap** — must not
-  refetch from Scryfall on every slider tick.
-- Thermal-vs-full-res preview toggle.
+- ~~Contrast / brightness sliders...~~ Already implemented (`ProxyGeneratorViewModel.setContrast`
+  / `setBrightness` / `resetToneMapping`, debounced via `scheduleRedither`, re-dithers
+  `sourceArt` — no network refetch) and present in the UI (tone sheet + "Adjust dither tone"
+  menu item). Confirmed present on-device; slider drag behavior itself not exercised this
+  session.
+- ~~Thermal-vs-full-res preview toggle.~~ Already implemented (`PreviewMode` /
+  `setPreviewMode`, the "Thermal" / "Full card" segmented toggle visible in every screenshot this
+  session). Confirmed rendering both modes.
 
 ### History
-- ~20-entry session history with reprint.
+- ~~~20-entry session history with reprint.~~ Already implemented (`HistoryEntry`,
+  `MAX_HISTORY = 20`, `reprint()`, "Session history (N)" menu item). Present in the UI; not
+  exercised this session beyond confirming the menu item and count update.
 
 ### Housekeeping (dependency + code hygiene)
 - **Strip unused deps:** CameraX (×4), Room (×3), `play-services-location`, Accompanist,

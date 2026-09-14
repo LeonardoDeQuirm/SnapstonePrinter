@@ -18,6 +18,7 @@ class CardRepositoryTest {
     ) : ScryfallApiService {
         var lastQuery: String? = "UNINITIALIZED"
         var callCount = 0
+        var lastFuzzy: String? = "UNINITIALIZED"
 
         override suspend fun getRandomCard(query: String?): ScryfallCard {
             lastQuery = query
@@ -32,6 +33,15 @@ class CardRepositoryTest {
                 toughness = null,
                 image_uris = ImageUris(artCrop = "https://example.com/art.jpg"),
                 layout = layout
+            )
+        }
+
+        override suspend fun getCardByName(fuzzy: String): ScryfallCard {
+            lastFuzzy = fuzzy
+            return ScryfallCard(
+                name = fuzzy,
+                image_uris = ImageUris(artCrop = "https://example.com/art.jpg"),
+                layout = "normal"
             )
         }
     }
@@ -116,6 +126,28 @@ class CardRepositoryTest {
         assertEquals(CardRepository.MAX_REROLL_ATTEMPTS, fakeApi.callCount)
         // Best-effort fallback rather than an exception.
         assertEquals("token", card.layout)
+    }
+
+    // -------------------------------------------------------- named lookup
+
+    @Test
+    fun testGetCardByName_passesQueryThroughAsFuzzy() = runTest {
+        val fakeApi = FakeScryfallApiService()
+        val repository = CardRepository(fakeApi)
+        val card = repository.getCardByName("fire ice")
+
+        assertEquals("fire ice", fakeApi.lastFuzzy)
+        assertEquals("fire ice", card.name)
+    }
+
+    @Test
+    fun testGetCardByName_doesNotRerollJunkLayouts() = runTest {
+        // Unlike getRandomCard, a named lookup never re-rolls - the caller asked for THIS card.
+        val fakeApi = FakeScryfallApiService()
+        val repository = CardRepository(fakeApi)
+        repository.getCardByName("black lotus")
+
+        assertEquals(0, fakeApi.callCount)
     }
 
     @Test

@@ -9,4 +9,10 @@ interface ScryfallApiService {
     suspend fun getRandomCard(
         @Query("q") query: String? = null
     ): ScryfallCard
+
+    /** Fuzzy name lookup - tolerates typos/partial names the way the Scryfall search bar does. */
+    @GET("cards/named")
+    suspend fun getCardByName(
+        @Query("fuzzy") fuzzy: String
+    ): ScryfallCard
 }

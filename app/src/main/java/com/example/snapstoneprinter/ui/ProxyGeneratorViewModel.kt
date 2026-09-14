@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import retrofit2.HttpException
 import java.io.File
 import java.io.FileOutputStream
 
@@ -227,6 +228,19 @@ class ProxyGeneratorViewModel(
         generateProxy { repository.getRandomNonLandCard(_uiState.value.isFunny) }
     }
 
+    /**
+     * Fetches one exact card by name instead of rolling randomly.
+     *
+     * Doubles as the way to force-generate split/flip/adventure/transform/modal_dfc cards for
+     * testing the renderer - those layouts are a small slice of the random pool, and this skips
+     * waiting on RNG to hit one.
+     */
+    fun fetchCardByName(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        generateProxy { repository.getCardByName(trimmed) }
+    }
+
     private fun generateProxy(fetchBlock: suspend () -> ScryfallCard) {
         reditherJob?.cancel()
         viewModelScope.launch {
@@ -286,7 +300,12 @@ class ProxyGeneratorViewModel(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Proxy generation failed", e)
-                _uiState.update { it.copy(isLoading = false, error = e.message ?: "Unknown error") }
+                val message = if (e is HttpException && e.code() == 404) {
+                    "No card found by that name"
+                } else {
+                    e.message ?: "Unknown error"
+                }
+                _uiState.update { it.copy(isLoading = false, error = message) }
             }
         }
     }
