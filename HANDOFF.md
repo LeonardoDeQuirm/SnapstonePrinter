@@ -287,15 +287,44 @@ that specific widget.
   `MAX_HISTORY = 20`, `reprint()`, "Session history (N)" menu item). Present in the UI; not
   exercised this session beyond confirming the menu item and count update.
 
-### Housekeeping (dependency + code hygiene)
-- **Strip unused deps:** CameraX (×4), Room (×3), `play-services-location`, Accompanist,
-  `material-views`.
-- **KEEP `datastore`** — `PrinterTargetStore` depends on it.
-- **Pin versions:** `1.3.+`, `2.11.+`, `1.4.+`.
-- Gate `HttpLoggingInterceptor` behind `BuildConfig.DEBUG`.
-- Remove `Context` from the ViewModel.
-- Drop the redundant Moshi `KotlinJsonAdapterFactory` (codegen is already in use).
-- Clean unused imports.
+### Housekeeping (dependency + code hygiene) — **DONE, 2026-09-14**
+
+This whole list turned out to be stale before any of it was touched this session — verified via
+`grep` across `build.gradle.kts` and `gradle/libs.versions.toml` before assuming anything needed
+doing:
+
+- ~~Strip unused deps: CameraX (×4), Room (×3), `play-services-location`, Accompanist,
+  `material-views`.~~ None of these appear ANYWHERE in the project. Already gone (or never
+  actually added — unclear which, doesn't matter).
+- ~~KEEP `datastore`.~~ N/A, moot — still present and used by `PrinterTargetStore` as expected.
+- ~~Pin versions: `1.3.+`, `2.11.+`, `1.4.+`.~~ Already pinned to exact versions everywhere, with
+  a comment in `libs.versions.toml` explaining why (`"1.3.+"` makes the build non-reproducible).
+- ~~Gate `HttpLoggingInterceptor` behind `BuildConfig.DEBUG`.~~ Already done in
+  `RetrofitClient.kt`.
+- ~~Drop the redundant Moshi `KotlinJsonAdapterFactory`.~~ Already dropped — codegen-only, with a
+  doc comment explaining why (a reflective factory added via `.add()` would shadow the generated
+  adapters).
+- Remove `Context` from the ViewModel — **not applicable**, and not a real issue: the ViewModel
+  extends `AndroidViewModel(application)`, the Android-recommended safe pattern specifically
+  because a raw `Context` field is the classic Activity-leak bug. `ArtDownloader` does the same
+  (`context.applicationContext` on construction). Nothing to remove here.
+- ~~Clean unused imports.~~ Ran `./gradlew lintDebug` plus a manual sweep for delegate-operator
+  false positives. Found and fixed: an unused `android.app.Activity` import and an obsolete
+  `Build.VERSION.SDK_INT >= S` check in `Theme.kt` (minSdk 36 already clears API 31
+  unconditionally); a redundant `android:label` on `MainActivity` (already inherited from
+  `<application>`); two fully dead resources (`colors.xml` — 7 unused template colors — and
+  `placeholder.png`, a template image with zero references anywhere).
+
+**Bonus, not on the original list:** lint's `UseKtx` check found every
+`Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)` and every
+`canvas.save(); canvas.translate(...); ...; canvas.restore()` block in `ImageProcessor.kt` /
+`ArtDownloader.kt`. Replaced with the KTX `createBitmap(w, h)` default and
+`Canvas.withTranslation(x, y) { ... }` — same behavior, no way to forget the matching `restore()`.
+
+Remaining lint output (21 findings) is just "newer version available" noise, out of scope given
+the deliberate version-pinning policy above, plus 2 false-positive `IconLocation` hints on the
+adaptive icon's foreground/monochrome layers (that warning doesn't understand adaptive icon
+layer semantics — a single high-res image is the correct, normal setup there).
 
 ---
 
