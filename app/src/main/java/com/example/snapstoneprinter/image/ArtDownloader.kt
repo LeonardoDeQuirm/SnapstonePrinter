@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.Log
+import androidx.core.graphics.createBitmap
 import coil.ImageLoader
 import coil.request.CachePolicy
 import coil.request.ErrorResult
@@ -146,7 +147,7 @@ class ArtDownloader(context: Context) {
         if (width <= 0 || height <= 0) return null
 
         return try {
-            val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val output = createBitmap(width, height)
             setBounds(0, 0, width, height)
             draw(Canvas(output))
             output

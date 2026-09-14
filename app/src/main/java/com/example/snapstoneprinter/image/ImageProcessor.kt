@@ -10,6 +10,8 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.Log
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withTranslation
 import com.example.snapstoneprinter.data.model.ScryfallCard
 import com.example.snapstoneprinter.data.util.ManaCostFormatter
 
@@ -99,7 +101,7 @@ object ImageProcessor {
             outPixels[i] = (0xFF shl 24) or (g shl 16) or (g shl 8) or g
         }
 
-        val dest = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val dest = createBitmap(width, height)
         dest.setPixels(outPixels, 0, width, 0, 0, width, height)
         return dest
     }
@@ -284,7 +286,7 @@ object ImageProcessor {
         val totalHeight = currentY.toInt()
 
         // Create bitmap and canvas
-        val resultBitmap = Bitmap.createBitmap(canvasWidth, totalHeight, Bitmap.Config.ARGB_8888)
+        val resultBitmap = createBitmap(canvasWidth, totalHeight)
         val canvas = Canvas(resultBitmap)
         canvas.drawColor(Color.WHITE)
 
@@ -292,23 +294,14 @@ object ImageProcessor {
         var drawY = padding.toFloat()
 
         if (labelLayout != null) {
-            canvas.save()
-            canvas.translate(padding.toFloat(), drawY)
-            labelLayout.draw(canvas)
-            canvas.restore()
+            canvas.withTranslation(padding.toFloat(), drawY) { labelLayout.draw(this) }
             drawY += labelLayout.height + 6f
         }
 
-        canvas.save()
-        canvas.translate(padding.toFloat(), drawY)
-        titleRow.draw(canvas)
-        canvas.restore()
+        canvas.withTranslation(padding.toFloat(), drawY) { titleRow.draw(this) }
         drawY += titleRow.height + 8f
 
-        canvas.save()
-        canvas.translate(padding.toFloat(), drawY)
-        typeLayout.draw(canvas)
-        canvas.restore()
+        canvas.withTranslation(padding.toFloat(), drawY) { typeLayout.draw(this) }
         drawY += typeLayout.height + 12f
 
         if (ditheredArt != null && imgHeight > 0) {
@@ -318,48 +311,30 @@ object ImageProcessor {
             drawY += imgHeight + 12f
         }
 
-        canvas.save()
-        canvas.translate(padding.toFloat(), drawY)
-        oracleLayout.draw(canvas)
-        canvas.restore()
+        canvas.withTranslation(padding.toFloat(), drawY) { oracleLayout.draw(this) }
         drawY += oracleLayout.height
 
         if (ptLayout != null) {
             drawY += 8f
-            canvas.save()
-            canvas.translate(padding.toFloat(), drawY)
-            ptLayout.draw(canvas)
-            canvas.restore()
+            canvas.withTranslation(padding.toFloat(), drawY) { ptLayout.draw(this) }
             drawY += ptLayout.height
         }
 
         secondaryBlocks.forEach { block ->
             drawY += SECONDARY_FACE_GAP_PX
 
-            canvas.save()
-            canvas.translate(padding.toFloat(), drawY)
-            block.titleRow.draw(canvas)
-            canvas.restore()
+            canvas.withTranslation(padding.toFloat(), drawY) { block.titleRow.draw(this) }
             drawY += block.titleRow.height + 8f
 
-            canvas.save()
-            canvas.translate(padding.toFloat(), drawY)
-            block.typeLayout.draw(canvas)
-            canvas.restore()
+            canvas.withTranslation(padding.toFloat(), drawY) { block.typeLayout.draw(this) }
             drawY += block.typeLayout.height + 12f
 
-            canvas.save()
-            canvas.translate(padding.toFloat(), drawY)
-            block.oracleLayout.draw(canvas)
-            canvas.restore()
+            canvas.withTranslation(padding.toFloat(), drawY) { block.oracleLayout.draw(this) }
             drawY += block.oracleLayout.height
 
             if (block.ptLayout != null) {
                 drawY += 8f
-                canvas.save()
-                canvas.translate(padding.toFloat(), drawY)
-                block.ptLayout.draw(canvas)
-                canvas.restore()
+                canvas.withTranslation(padding.toFloat(), drawY) { block.ptLayout.draw(this) }
                 drawY += block.ptLayout.height
             }
         }
