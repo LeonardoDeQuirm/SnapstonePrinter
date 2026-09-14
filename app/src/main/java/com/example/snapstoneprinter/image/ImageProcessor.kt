@@ -30,6 +30,9 @@ object ImageProcessor {
      *  so the other half of a split/flip/adventure card reads as visually separate. */
     private const val SECONDARY_FACE_GAP_PX = 24f
 
+    /** Horizontal breathing room between the name column and the right-justified mana cost. */
+    private const val TITLE_COST_GAP_PX = 12f
+
     const val DEFAULT_CONTRAST = Tonemap.DEFAULT_CONTRAST
     const val DEFAULT_BRIGHTNESS = Tonemap.DEFAULT_BRIGHTNESS
 
@@ -210,9 +213,8 @@ object ImageProcessor {
         }
 
         val manaCost = safeManaCost(content.manaCost)
-        val titleText = content.name + (if (manaCost.isNotEmpty()) "  $manaCost" else "")
-        val titleLayout = StaticLayout.Builder.obtain(titleText, 0, titleText.length, titlePaint, textWidth).build()
-        currentY += titleLayout.height + 8f
+        val titleRow = buildTitleRow(content.name, manaCost, textWidth, titlePaint)
+        currentY += titleRow.height + 8f
 
         val typeText = content.typeLine ?: ""
         val typeLayout = StaticLayout.Builder.obtain(typeText, 0, typeText.length, typePaint, textWidth).build()
@@ -247,11 +249,8 @@ object ImageProcessor {
             currentY += SECONDARY_FACE_GAP_PX
 
             val faceManaCost = safeManaCost(face.manaCost)
-            val faceTitleText = face.name + (if (faceManaCost.isNotEmpty()) "  $faceManaCost" else "")
-            val faceTitleLayout = StaticLayout.Builder
-                .obtain(faceTitleText, 0, faceTitleText.length, titlePaint, textWidth)
-                .build()
-            currentY += faceTitleLayout.height + 8f
+            val faceTitleRow = buildTitleRow(face.name, faceManaCost, textWidth, titlePaint)
+            currentY += faceTitleRow.height + 8f
 
             val faceTypeText = face.typeLine ?: ""
             val faceTypeLayout = StaticLayout.Builder
@@ -276,7 +275,7 @@ object ImageProcessor {
                 currentY += facePtLayout.height
             }
 
-            SecondaryFaceLayout(faceTitleLayout, faceTypeLayout, faceOracleLayout, facePtLayout)
+            SecondaryFaceLayout(faceTitleRow, faceTypeLayout, faceOracleLayout, facePtLayout)
         }
 
         currentY += padding.toFloat()
@@ -302,9 +301,9 @@ object ImageProcessor {
 
         canvas.save()
         canvas.translate(padding.toFloat(), drawY)
-        titleLayout.draw(canvas)
+        titleRow.draw(canvas)
         canvas.restore()
-        drawY += titleLayout.height + 8f
+        drawY += titleRow.height + 8f
 
         canvas.save()
         canvas.translate(padding.toFloat(), drawY)
@@ -339,9 +338,9 @@ object ImageProcessor {
 
             canvas.save()
             canvas.translate(padding.toFloat(), drawY)
-            block.titleLayout.draw(canvas)
+            block.titleRow.draw(canvas)
             canvas.restore()
-            drawY += block.titleLayout.height + 8f
+            drawY += block.titleRow.height + 8f
 
             canvas.save()
             canvas.translate(padding.toFloat(), drawY)
@@ -370,11 +369,50 @@ object ImageProcessor {
 
     /** Measured layouts for one [SecondaryFace] block, reused between the measure and draw passes. */
     private data class SecondaryFaceLayout(
-        val titleLayout: StaticLayout,
+        val titleRow: TitleRow,
         val typeLayout: StaticLayout,
         val oracleLayout: StaticLayout,
         val ptLayout: StaticLayout?
     )
+
+    /**
+     * Name flush left, mana cost flush right - one row, matching how a physical card (and the
+     * power/toughness line below) lays it out. Two independent [StaticLayout]s rather than one
+     * combined string: the name is width-capped to leave room for the cost column, so a long
+     * combined name (e.g. "Bonecrusher Giant // Stomp") wraps onto a second line instead of
+     * colliding with the cost instead of running under it.
+     */
+    private class TitleRow(
+        private val nameLayout: StaticLayout,
+        private val costLayout: StaticLayout?
+    ) {
+        val height: Int = maxOf(nameLayout.height, costLayout?.height ?: 0)
+
+        fun draw(canvas: Canvas) {
+            nameLayout.draw(canvas)
+            costLayout?.draw(canvas)
+        }
+    }
+
+    /** Minimum share of [textWidth] left for the name column even with an unusually wide cost. */
+    private const val MIN_NAME_WIDTH_FRACTION = 0.4
+
+    private fun buildTitleRow(name: String, manaCost: String, textWidth: Int, titlePaint: TextPaint): TitleRow {
+        if (manaCost.isEmpty()) {
+            val nameLayout = StaticLayout.Builder.obtain(name, 0, name.length, titlePaint, textWidth).build()
+            return TitleRow(nameLayout, null)
+        }
+
+        val costWidth = titlePaint.measureText(manaCost)
+        val nameWidth = (textWidth - costWidth - TITLE_COST_GAP_PX)
+            .toInt()
+            .coerceAtLeast((textWidth * MIN_NAME_WIDTH_FRACTION).toInt())
+        val nameLayout = StaticLayout.Builder.obtain(name, 0, name.length, titlePaint, nameWidth).build()
+        val costLayout = StaticLayout.Builder.obtain(manaCost, 0, manaCost.length, titlePaint, textWidth)
+            .setAlignment(Layout.Alignment.ALIGN_OPPOSITE)
+            .build()
+        return TitleRow(nameLayout, costLayout)
+    }
 
     /**
      * Formats a mana cost for the title line, degrading gracefully instead of failing the render.
