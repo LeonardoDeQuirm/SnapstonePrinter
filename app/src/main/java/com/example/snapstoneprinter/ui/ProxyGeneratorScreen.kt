@@ -20,7 +20,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Landscape
 import androidx.compose.material.icons.rounded.LinkOff
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Print
@@ -129,7 +128,6 @@ fun ProxyGeneratorScreen(
             ProxyTopBar(
                 uiState = uiState,
                 onFetchRandom = viewModel::fetchRandomCard,
-                onFetchNonLand = viewModel::fetchRandomNonLand,
                 onToggleFunny = viewModel::toggleIsFunny,
                 onOpenTone = { showToneSheet = true },
                 onOpenHistory = { showHistorySheet = true },
@@ -182,7 +180,6 @@ fun ProxyGeneratorScreen(
                     ProxyControls(
                         uiState = uiState,
                         onFetchRandom = viewModel::fetchRandomCard,
-                        onFetchNonLand = viewModel::fetchRandomNonLand,
                         onToggleFunny = viewModel::toggleIsFunny,
                         onContrastChange = viewModel::setContrast,
                         onBrightnessChange = viewModel::setBrightness,
@@ -292,7 +289,6 @@ private fun chosenComponentSender(context: Context) = PendingIntent.getBroadcast
 private fun ProxyTopBar(
     uiState: ProxyGeneratorUiState,
     onFetchRandom: () -> Unit,
-    onFetchNonLand: () -> Unit,
     onToggleFunny: (Boolean) -> Unit,
     onOpenTone: () -> Unit,
     onOpenHistory: () -> Unit,
@@ -337,14 +333,6 @@ private fun ProxyTopBar(
                         onClick = {
                             menuExpanded = false
                             onFetchRandom()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Random non-land") },
-                        leadingIcon = { Icon(Icons.Rounded.Landscape, contentDescription = null) },
-                        onClick = {
-                            menuExpanded = false
-                            onFetchNonLand()
                         }
                     )
                     DropdownMenuItem(
@@ -781,7 +769,6 @@ private fun MultiSlipHeader(
 fun ProxyControls(
     uiState: ProxyGeneratorUiState,
     onFetchRandom: () -> Unit,
-    onFetchNonLand: () -> Unit,
     onToggleFunny: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onContrastChange: (Float) -> Unit = {},
@@ -847,17 +834,6 @@ fun ProxyControls(
             Icon(Icons.Rounded.Casino, contentDescription = null)
             Spacer(Modifier.width(8.dp))
             Text("Random card")
-        }
-
-        OutlinedButton(
-            onClick = onFetchNonLand,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !uiState.isLoading,
-            contentPadding = PaddingValues(16.dp)
-        ) {
-            Icon(Icons.Rounded.Landscape, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Random non-land")
         }
 
         if (uiState.slips.isNotEmpty()) {

@@ -17,12 +17,13 @@ object ScryfallQueryBuilder {
     const val FUNNY = "is:funny"
 
     /**
+     * Lands are never a valid pull: the app exists to proxy a card for Snapstone Wielder, which
+     * only ever targets a nonland card, so every random query excludes them unconditionally.
+     *
      * @param isFunny include silver-bordered / acorn cards.
-     * @param nonLandOnly exclude lands.
      */
-    fun build(isFunny: Boolean = false, nonLandOnly: Boolean = false): String {
-        val terms = mutableListOf<String>()
-        if (nonLandOnly) terms += NON_LAND
+    fun build(isFunny: Boolean = false): String {
+        val terms = mutableListOf(NON_LAND)
         if (isFunny) terms += FUNNY
         terms += EXCLUDE_EXTRAS
         return terms.joinToString(" ")

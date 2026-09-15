@@ -7,11 +7,9 @@ import com.example.snapstoneprinter.data.model.ScryfallCard
 
 class CardRepository(private val apiService: ScryfallApiService) {
 
+    /** Always excludes lands - see [ScryfallQueryBuilder.build]. */
     suspend fun getRandomCard(isFunny: Boolean = false): ScryfallCard =
-        fetchPlayableCard(ScryfallQueryBuilder.build(isFunny = isFunny, nonLandOnly = false))
-
-    suspend fun getRandomNonLandCard(isFunny: Boolean = false): ScryfallCard =
-        fetchPlayableCard(ScryfallQueryBuilder.build(isFunny = isFunny, nonLandOnly = true))
+        fetchPlayableCard(ScryfallQueryBuilder.build(isFunny = isFunny))
 
     /**
      * Fetches an exact (fuzzy-matched) card by name.

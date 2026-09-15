@@ -220,15 +220,10 @@ class ProxyGeneratorViewModel(
     // Fetching
     // ------------------------------------------------------------------
 
+    /** Always excludes lands - see [CardRepository.getRandomCard]. */
     fun fetchRandomCard() {
         generateProxy(notFoundMessage = "No random card found - try again") {
             repository.getRandomCard(_uiState.value.isFunny)
-        }
-    }
-
-    fun fetchRandomNonLand() {
-        generateProxy(notFoundMessage = "No random card found - try again") {
-            repository.getRandomNonLandCard(_uiState.value.isFunny)
         }
     }
 

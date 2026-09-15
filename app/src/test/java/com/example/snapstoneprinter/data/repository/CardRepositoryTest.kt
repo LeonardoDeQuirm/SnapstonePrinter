@@ -50,40 +50,22 @@ class CardRepositoryTest {
     // ---------------------------------------------------------------- queries
 
     @Test
-    fun testGetRandomCard_noToggle() = runTest {
+    fun testGetRandomCard_noToggle_excludesLands() = runTest {
         val fakeApi = FakeScryfallApiService()
         val repository = CardRepository(fakeApi)
         val card = repository.getRandomCard(isFunny = false)
 
         assertEquals("Black Lotus", card.name)
-        assertEquals("-is:extra", fakeApi.lastQuery)
+        assertEquals("-t:land -is:extra", fakeApi.lastQuery)
     }
 
     @Test
-    fun testGetRandomCard_withFunnyToggle() = runTest {
+    fun testGetRandomCard_withFunnyToggle_excludesLands() = runTest {
         val fakeApi = FakeScryfallApiService()
         val repository = CardRepository(fakeApi)
         val card = repository.getRandomCard(isFunny = true)
 
         assertEquals("Black Lotus", card.name)
-        assertEquals("is:funny -is:extra", fakeApi.lastQuery)
-    }
-
-    @Test
-    fun testGetRandomNonLandCard_noToggle() = runTest {
-        val fakeApi = FakeScryfallApiService()
-        val repository = CardRepository(fakeApi)
-        repository.getRandomNonLandCard(isFunny = false)
-
-        assertEquals("-t:land -is:extra", fakeApi.lastQuery)
-    }
-
-    @Test
-    fun testGetRandomNonLandCard_withFunnyToggle() = runTest {
-        val fakeApi = FakeScryfallApiService()
-        val repository = CardRepository(fakeApi)
-        repository.getRandomNonLandCard(isFunny = true)
-
         assertEquals("-t:land is:funny -is:extra", fakeApi.lastQuery)
     }
 
