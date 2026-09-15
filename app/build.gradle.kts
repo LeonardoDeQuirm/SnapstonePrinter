@@ -26,8 +26,8 @@ android {
         applicationId = "com.example.snapstoneprinter"
         minSdk = 36
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
