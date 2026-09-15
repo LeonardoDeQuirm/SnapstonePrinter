@@ -17,6 +17,7 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
@@ -43,6 +44,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -344,12 +346,23 @@ private fun ProxyTopBar(
             Box {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable(enabled = !uiState.isLoading) {
-                        modeMenuExpanded = true
-                    }
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .clickable(enabled = !uiState.isLoading) { modeMenuExpanded = true }
+                        // The bar itself is already primaryContainer - a scrim of onPrimaryContainer
+                        // is the only thing that stays visible against it in both light and dark.
+                        .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text(appMode.displayName)
-                    Icon(Icons.Rounded.ArrowDropDown, contentDescription = "Switch game mode")
+                    Text(
+                        text = appMode.displayName,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Icon(
+                        Icons.Rounded.ArrowDropDown,
+                        contentDescription = "Switch game mode",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                 }
                 DropdownMenu(
                     expanded = modeMenuExpanded,
@@ -711,12 +724,24 @@ fun ProxyPreview(
                     }
                 }
             } else {
-                Text(
-                    text = "No proxy generated yet \u2014 tap the dice in the top bar",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(24.dp)
-                )
+                ) {
+                    Icon(
+                        Icons.Rounded.Casino,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = "No proxy generated yet \u2014 tap the dice in the top bar",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
     }

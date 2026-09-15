@@ -10,32 +10,58 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = SlateBluePrimaryDark,
+    onPrimary = OnSlateBluePrimaryDark,
+    primaryContainer = SlateBluePrimaryContainerDark,
+    onPrimaryContainer = OnSlateBluePrimaryContainerDark,
+    secondary = SlateGraySecondaryDark,
+    onSecondary = OnSlateGraySecondaryDark,
+    secondaryContainer = SlateGraySecondaryContainerDark,
+    onSecondaryContainer = OnSlateGraySecondaryContainerDark,
+    tertiary = SageTertiaryDark,
+    onTertiary = OnSageTertiaryDark,
+    tertiaryContainer = SageTertiaryContainerDark,
+    onTertiaryContainer = OnSageTertiaryContainerDark,
+    background = BackgroundDark,
+    onBackground = OnBackgroundDark,
+    surface = BackgroundDark,
+    onSurface = OnBackgroundDark,
+    surfaceVariant = SurfaceVariantDark,
+    onSurfaceVariant = OnSurfaceVariantDark,
+    surfaceContainer = SurfaceContainerDark,
+    outline = OutlineDark,
+    outlineVariant = OutlineVariantDark
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = SlateBluePrimaryLight,
+    onPrimary = OnSlateBluePrimaryLight,
+    primaryContainer = SlateBluePrimaryContainerLight,
+    onPrimaryContainer = OnSlateBluePrimaryContainerLight,
+    secondary = SlateGraySecondaryLight,
+    onSecondary = OnSlateGraySecondaryLight,
+    secondaryContainer = SlateGraySecondaryContainerLight,
+    onSecondaryContainer = OnSlateGraySecondaryContainerLight,
+    tertiary = SageTertiaryLight,
+    onTertiary = OnSageTertiaryLight,
+    tertiaryContainer = SageTertiaryContainerLight,
+    onTertiaryContainer = OnSageTertiaryContainerLight,
+    background = BackgroundLight,
+    onBackground = OnBackgroundLight,
+    surface = BackgroundLight,
+    onSurface = OnBackgroundLight,
+    surfaceVariant = SurfaceVariantLight,
+    onSurfaceVariant = OnSurfaceVariantLight,
+    surfaceContainer = SurfaceContainerLight,
+    outline = OutlineLight,
+    outlineVariant = OutlineVariantLight
 )
 
 @Composable
 fun SnapstonePrinterTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color needs Android 12+ (S); minSdk 36 clears that unconditionally.
-    dynamicColor: Boolean = true,
+    // A deliberate, fixed neutral palette (see Color.kt), not the device wallpaper.
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
