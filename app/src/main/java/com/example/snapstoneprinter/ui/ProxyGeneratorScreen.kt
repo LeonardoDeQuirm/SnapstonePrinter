@@ -283,7 +283,7 @@ fun ProxyGeneratorScreen(
     }
 
     if (showMomirVigSheet) {
-        MomirVigCmcSheet(
+        MomirVigCmcScreen(
             isLoading = uiState.isLoading,
             isFunny = uiState.isFunny,
             onToggleFunny = viewModel::toggleIsFunny,
