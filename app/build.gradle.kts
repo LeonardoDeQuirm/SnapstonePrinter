@@ -46,7 +46,12 @@ android {
     buildTypes {
         release {
             optimization {
-                enable = false
+                // R8 shrinking/obfuscation. Low-risk here: Moshi uses KSP codegen (not
+                // reflection) for JSON parsing, and kotlinx.serialization's compiler plugin
+                // generates serializers at compile time too - the usual R8-breaks-JSON-parsing
+                // failure mode doesn't apply. Library consumer keep-rules (Retrofit/Moshi/OkHttp/
+                // Coil/Compose) are merged automatically by default.
+                enable = true
             }
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
