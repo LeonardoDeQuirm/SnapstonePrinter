@@ -8,7 +8,9 @@ App: Android app that rolls a random Magic: The Gathering card from Scryfall, re
 a 384px-wide 1-bit dithered "proxy slip", and hands it to an external Bluetooth thermal
 printer app via `ACTION_SEND`.
 
-Package: `com.example.snapstoneprinter` · Module: `:app` · Single-module Gradle project.
+Package: `dev.snapstonewielder.app` (renamed from the `com.example.snapstoneprinter` template
+default 2026-09-15 - different applicationId, so anyone with an older release installed needs to
+uninstall it manually; it will not auto-update) · Module: `:app` · Single-module Gradle project.
 
 ---
 

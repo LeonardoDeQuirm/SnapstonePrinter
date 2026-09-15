@@ -17,13 +17,13 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.example.snapstoneprinter"
+    namespace = "dev.snapstonewielder.app"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.example.snapstoneprinter"
+        applicationId = "dev.snapstonewielder.app"
         minSdk = 36
         targetSdk = 37
         versionCode = 3
