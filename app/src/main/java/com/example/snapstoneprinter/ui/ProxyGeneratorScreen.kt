@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
@@ -18,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.LinkOff
@@ -59,6 +61,17 @@ private val ThermalPaper = Color.White
 /** Scryfall `normal` card images are 488x680; this is their aspect ratio. */
 private const val CARD_ASPECT_RATIO = 488f / 680f
 
+/**
+ * Which game mode the top bar's switcher is set to.
+ *
+ * Snapstone Wielder's roll action fetches a random card directly; MomirVig's roll action opens
+ * [MomirVigCmcSheet] instead, since conjuring a creature needs a chosen converted mana cost first.
+ */
+enum class AppMode(val displayName: String) {
+    SNAPSTONE_WIELDER("Snapstone Wielder"),
+    MOMIR_VIG("MomirVig")
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProxyGeneratorScreen(
@@ -71,6 +84,16 @@ fun ProxyGeneratorScreen(
     var showToneSheet by remember { mutableStateOf(false) }
     var showHistorySheet by remember { mutableStateOf(false) }
     var showSearchSheet by remember { mutableStateOf(false) }
+    var showMomirVigSheet by remember { mutableStateOf(false) }
+    var appMode by remember { mutableStateOf(AppMode.SNAPSTONE_WIELDER) }
+
+    // Snapstone Wielder rolls immediately; MomirVig needs a CMC first, so its roll action opens
+    // the picker sheet instead - the SAME control doubles as "pick a different CMC" later.
+    val onRoll: () -> Unit = if (appMode == AppMode.SNAPSTONE_WIELDER) {
+        viewModel::fetchRandomCard
+    } else {
+        { showMomirVigSheet = true }
+    }
 
     // Hoisted so the "Print" action in the bottom bar always targets the slip the user is
     // actually looking at in the pager.
@@ -127,7 +150,9 @@ fun ProxyGeneratorScreen(
             // here, deliberately out of thumb reach. The bottom button only ever prints.
             ProxyTopBar(
                 uiState = uiState,
-                onFetchRandom = viewModel::fetchRandomCard,
+                appMode = appMode,
+                onAppModeChange = { appMode = it },
+                onFetchRandom = onRoll,
                 onToggleFunny = viewModel::toggleIsFunny,
                 onOpenTone = { showToneSheet = true },
                 onOpenHistory = { showHistorySheet = true },
@@ -179,7 +204,8 @@ fun ProxyGeneratorScreen(
                     }
                     ProxyControls(
                         uiState = uiState,
-                        onFetchRandom = viewModel::fetchRandomCard,
+                        appMode = appMode,
+                        onFetchRandom = onRoll,
                         onToggleFunny = viewModel::toggleIsFunny,
                         onContrastChange = viewModel::setContrast,
                         onBrightnessChange = viewModel::setBrightness,
@@ -255,6 +281,19 @@ fun ProxyGeneratorScreen(
             onDismiss = { showSearchSheet = false }
         )
     }
+
+    if (showMomirVigSheet) {
+        MomirVigCmcSheet(
+            isLoading = uiState.isLoading,
+            isFunny = uiState.isFunny,
+            onToggleFunny = viewModel::toggleIsFunny,
+            onPickCmc = {
+                showMomirVigSheet = false
+                viewModel.fetchMomirVigCreature(it)
+            },
+            onDismiss = { showMomirVigSheet = false }
+        )
+    }
 }
 
 /**
@@ -288,6 +327,8 @@ private fun chosenComponentSender(context: Context) = PendingIntent.getBroadcast
 @Composable
 private fun ProxyTopBar(
     uiState: ProxyGeneratorUiState,
+    appMode: AppMode,
+    onAppModeChange: (AppMode) -> Unit,
     onFetchRandom: () -> Unit,
     onToggleFunny: (Boolean) -> Unit,
     onOpenTone: () -> Unit,
@@ -296,9 +337,36 @@ private fun ProxyTopBar(
     onForgetTarget: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    var modeMenuExpanded by remember { mutableStateOf(false) }
 
     TopAppBar(
-        title = { Text("Thermal Proxy") },
+        title = {
+            Box {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable(enabled = !uiState.isLoading) {
+                        modeMenuExpanded = true
+                    }
+                ) {
+                    Text(appMode.displayName)
+                    Icon(Icons.Rounded.ArrowDropDown, contentDescription = "Switch game mode")
+                }
+                DropdownMenu(
+                    expanded = modeMenuExpanded,
+                    onDismissRequest = { modeMenuExpanded = false }
+                ) {
+                    AppMode.entries.forEach { mode ->
+                        DropdownMenuItem(
+                            text = { Text(mode.displayName) },
+                            onClick = {
+                                modeMenuExpanded = false
+                                onAppModeChange(mode)
+                            }
+                        )
+                    }
+                }
+            }
+        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -306,14 +374,20 @@ private fun ProxyTopBar(
         ),
         actions = {
             // Primary re-roll. One tap, but it is all the way up here so it cannot be hit by a
-            // thumb that was aiming for PRINT.
+            // thumb that was aiming for PRINT. In MomirVig mode this opens the CMC picker instead
+            // of fetching directly - see AppMode's doc.
+            val rollLabel = if (appMode == AppMode.SNAPSTONE_WIELDER) {
+                "Random card"
+            } else {
+                "Pick a CMC"
+            }
             IconButton(
                 onClick = onFetchRandom,
                 enabled = !uiState.isLoading
             ) {
                 Icon(
                     Icons.Rounded.Casino,
-                    contentDescription = "Re-roll: fetch a random card"
+                    contentDescription = rollLabel
                 )
             }
             Box {
@@ -328,7 +402,7 @@ private fun ProxyTopBar(
                     onDismissRequest = { menuExpanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Random card") },
+                        text = { Text(rollLabel) },
                         leadingIcon = { Icon(Icons.Rounded.Casino, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
@@ -768,6 +842,7 @@ private fun MultiSlipHeader(
 @Composable
 fun ProxyControls(
     uiState: ProxyGeneratorUiState,
+    appMode: AppMode,
     onFetchRandom: () -> Unit,
     onToggleFunny: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -833,7 +908,7 @@ fun ProxyControls(
         ) {
             Icon(Icons.Rounded.Casino, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("Random card")
+            Text(if (appMode == AppMode.SNAPSTONE_WIELDER) "Random card" else "Pick a CMC")
         }
 
         if (uiState.slips.isNotEmpty()) {

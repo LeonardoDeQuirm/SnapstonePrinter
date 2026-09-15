@@ -6,6 +6,7 @@ import com.example.snapstoneprinter.data.model.ScryfallCard
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class CardRepositoryTest {
@@ -144,6 +145,51 @@ class CardRepositoryTest {
             val repository = CardRepository(fakeApi)
             repository.getRandomCard()
             assertTrue("$layout should not be re-rolled", fakeApi.callCount == 1)
+        }
+    }
+
+    // -------------------------------------------------------- MomirVig
+
+    @Test
+    fun testGetMomirVigCreature_noToggle_filtersByCmcAndCreature() = runTest {
+        val fakeApi = FakeScryfallApiService()
+        val repository = CardRepository(fakeApi)
+        repository.getMomirVigCreature(cmc = 3, isFunny = false)
+
+        assertEquals("cmc=3 t:creature -is:extra", fakeApi.lastQuery)
+    }
+
+    @Test
+    fun testGetMomirVigCreature_withFunnyToggle() = runTest {
+        val fakeApi = FakeScryfallApiService()
+        val repository = CardRepository(fakeApi)
+        repository.getMomirVigCreature(cmc = 0, isFunny = true)
+
+        assertEquals("cmc=0 t:creature is:funny -is:extra", fakeApi.lastQuery)
+    }
+
+    @Test
+    fun testGetMomirVigCreature_rerollsJunkLayouts() = runTest {
+        val fakeApi = FakeScryfallApiService(listOf("token", "normal"))
+        val repository = CardRepository(fakeApi)
+        val card = repository.getMomirVigCreature(cmc = 5)
+
+        assertEquals(2, fakeApi.callCount)
+        assertEquals("normal", card.layout)
+    }
+
+    @Test
+    fun testGetMomirVigCreature_rejectsCmcOutsideValidRange() = runTest {
+        val fakeApi = FakeScryfallApiService()
+        val repository = CardRepository(fakeApi)
+
+        for (invalidCmc in listOf(-1, 17)) {
+            try {
+                repository.getMomirVigCreature(cmc = invalidCmc)
+                fail("Expected IllegalArgumentException for cmc=$invalidCmc")
+            } catch (e: IllegalArgumentException) {
+                // expected
+            }
         }
     }
 }

@@ -11,6 +11,10 @@ class CardRepository(private val apiService: ScryfallApiService) {
     suspend fun getRandomCard(isFunny: Boolean = false): ScryfallCard =
         fetchPlayableCard(ScryfallQueryBuilder.build(isFunny = isFunny))
 
+    /** Momir Vig's ability: a random CREATURE card of the chosen CMC - see [ScryfallQueryBuilder.buildMomirVig]. */
+    suspend fun getMomirVigCreature(cmc: Int, isFunny: Boolean = false): ScryfallCard =
+        fetchPlayableCard(ScryfallQueryBuilder.buildMomirVig(cmc, isFunny))
+
     /**
      * Fetches an exact (fuzzy-matched) card by name.
      *

@@ -227,6 +227,13 @@ class ProxyGeneratorViewModel(
         }
     }
 
+    /** MomirVig mode: a random creature of [cmc] - see [CardRepository.getMomirVigCreature]. */
+    fun fetchMomirVigCreature(cmc: Int) {
+        generateProxy(notFoundMessage = "No creature found at CMC $cmc") {
+            repository.getMomirVigCreature(cmc, _uiState.value.isFunny)
+        }
+    }
+
     /**
      * Fetches one exact card by name instead of rolling randomly.
      *

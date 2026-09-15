@@ -1,9 +1,11 @@
 package com.example.snapstoneprinter.ui
 
+import com.example.snapstoneprinter.data.api.ScryfallQueryBuilder
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,12 +28,14 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -253,6 +257,77 @@ fun CardSearchSheet(
                     Spacer(Modifier.width(8.dp))
                     Text("Generate")
                 }
+            }
+        }
+    }
+}
+
+/**
+ * MomirVig mode's CMC picker: activating Momir Vig conjures a token copy of a random CREATURE
+ * card of the chosen converted mana cost. One tap fetches immediately - there is no separate
+ * confirm step, since re-opening this same sheet (via the top bar's roll action) is how the user
+ * picks a different CMC for the next creature.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MomirVigCmcSheet(
+    isLoading: Boolean,
+    isFunny: Boolean,
+    onToggleFunny: (Boolean) -> Unit,
+    onPickCmc: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Pick a converted mana cost",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Momir Vig conjures a random creature card of this CMC.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(vertical = 8.dp)
+            ) {
+                for (cmc in ScryfallQueryBuilder.MOMIR_VIG_CMC_RANGE) {
+                    FilterChip(
+                        selected = false,
+                        enabled = !isLoading,
+                        onClick = { onPickCmc(cmc) },
+                        label = { Text(cmc.toString()) }
+                    )
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Include funny cards",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Switch(
+                    checked = isFunny,
+                    onCheckedChange = onToggleFunny,
+                    enabled = !isLoading
+                )
             }
         }
     }
