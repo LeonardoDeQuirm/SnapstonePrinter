@@ -14,7 +14,8 @@ class CardRepositoryTest {
      * @param layouts layout value handed back per successive call; the last value repeats forever.
      */
     private class FakeScryfallApiService(
-        private val layouts: List<String> = listOf("normal")
+        private val layouts: List<String> = listOf("normal"),
+        private val cardByNameLayout: String = "normal"
     ) : ScryfallApiService {
         var lastQuery: String? = "UNINITIALIZED"
         var callCount = 0
@@ -41,7 +42,7 @@ class CardRepositoryTest {
             return ScryfallCard(
                 name = fuzzy,
                 image_uris = ImageUris(artCrop = "https://example.com/art.jpg"),
-                layout = "normal"
+                layout = cardByNameLayout
             )
         }
     }
@@ -143,11 +144,15 @@ class CardRepositoryTest {
     @Test
     fun testGetCardByName_doesNotRerollJunkLayouts() = runTest {
         // Unlike getRandomCard, a named lookup never re-rolls - the caller asked for THIS card.
-        val fakeApi = FakeScryfallApiService()
+        // The fake deliberately returns a JUNK layout here: if getCardByName were ever routed
+        // through the reroll path, this card would trigger it, callCount would rise above 0, and
+        // the returned layout would end up as the reroll's fallback rather than "token".
+        val fakeApi = FakeScryfallApiService(cardByNameLayout = "token")
         val repository = CardRepository(fakeApi)
-        repository.getCardByName("black lotus")
+        val card = repository.getCardByName("black lotus")
 
         assertEquals(0, fakeApi.callCount)
+        assertEquals("token", card.layout)
     }
 
     @Test

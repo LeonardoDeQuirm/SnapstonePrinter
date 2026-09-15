@@ -214,70 +214,48 @@ object ImageProcessor {
             currentY += labelLayout.height + 6f
         }
 
-        val manaCost = safeManaCost(content.manaCost)
-        val titleRow = buildTitleRow(content.name, manaCost, textWidth, titlePaint)
-        currentY += titleRow.height + 8f
-
-        val typeText = content.typeLine ?: ""
-        val typeLayout = StaticLayout.Builder.obtain(typeText, 0, typeText.length, typePaint, textWidth).build()
-        currentY += typeLayout.height + 12f
+        val primaryBlock = measureFaceBlock(
+            name = content.name,
+            manaCost = content.manaCost,
+            typeLine = content.typeLine,
+            oracleText = content.oracleText,
+            power = content.power,
+            toughness = content.toughness,
+            textWidth = textWidth,
+            titlePaint = titlePaint,
+            typePaint = typePaint,
+            oraclePaint = oraclePaint,
+            ptPaint = ptPaint
+        )
 
         var imgHeight = 0
         if (ditheredArt != null && ditheredArt.width > 0) {
             imgHeight = (ditheredArt.height * textWidth) / ditheredArt.width
-            currentY += imgHeight + 12f
         }
+        val artGap = if (imgHeight > 0) imgHeight + 12f else 0f
 
-        val oracleText = content.oracleText ?: ""
-        val oracleLayout = StaticLayout.Builder.obtain(oracleText, 0, oracleText.length, oraclePaint, textWidth).build()
-        currentY += oracleLayout.height
-
-        val power = content.power
-        val toughness = content.toughness
-        var ptLayout: StaticLayout? = null
-        if (!power.isNullOrEmpty() && !toughness.isNullOrEmpty()) {
-            currentY += 8f
-            val ptText = "$power/$toughness"
-            ptLayout = StaticLayout.Builder.obtain(ptText, 0, ptText.length, ptPaint, textWidth)
-                .setAlignment(Layout.Alignment.ALIGN_OPPOSITE)
-                .build()
-            currentY += ptLayout.height
-        }
+        currentY = primaryBlock.advance(currentY, artGap)
 
         // Split / flip / adventure: the other half's text goes on THIS slip, underneath, never as
         // a separate ACTION_SEND. Extra vertical whitespace is the only separator - no rule line,
         // to stay inside the "no borders" spec.
         val secondaryBlocks = content.secondaryFaces.map { face ->
             currentY += SECONDARY_FACE_GAP_PX
-
-            val faceManaCost = safeManaCost(face.manaCost)
-            val faceTitleRow = buildTitleRow(face.name, faceManaCost, textWidth, titlePaint)
-            currentY += faceTitleRow.height + 8f
-
-            val faceTypeText = face.typeLine ?: ""
-            val faceTypeLayout = StaticLayout.Builder
-                .obtain(faceTypeText, 0, faceTypeText.length, typePaint, textWidth)
-                .build()
-            currentY += faceTypeLayout.height + 12f
-
-            val faceOracleText = face.oracleText ?: ""
-            val faceOracleLayout = StaticLayout.Builder
-                .obtain(faceOracleText, 0, faceOracleText.length, oraclePaint, textWidth)
-                .build()
-            currentY += faceOracleLayout.height
-
-            var facePtLayout: StaticLayout? = null
-            if (!face.power.isNullOrEmpty() && !face.toughness.isNullOrEmpty()) {
-                currentY += 8f
-                val facePtText = "${face.power}/${face.toughness}"
-                facePtLayout = StaticLayout.Builder
-                    .obtain(facePtText, 0, facePtText.length, ptPaint, textWidth)
-                    .setAlignment(Layout.Alignment.ALIGN_OPPOSITE)
-                    .build()
-                currentY += facePtLayout.height
-            }
-
-            SecondaryFaceLayout(faceTitleRow, faceTypeLayout, faceOracleLayout, facePtLayout)
+            val block = measureFaceBlock(
+                name = face.name,
+                manaCost = face.manaCost,
+                typeLine = face.typeLine,
+                oracleText = face.oracleText,
+                power = face.power,
+                toughness = face.toughness,
+                textWidth = textWidth,
+                titlePaint = titlePaint,
+                typePaint = typePaint,
+                oraclePaint = oraclePaint,
+                ptPaint = ptPaint
+            )
+            currentY = block.advance(currentY)
+            block
         }
 
         currentY += padding.toFloat()
@@ -298,57 +276,112 @@ object ImageProcessor {
             drawY += labelLayout.height + 6f
         }
 
-        canvas.withTranslation(padding.toFloat(), drawY) { titleRow.draw(this) }
-        drawY += titleRow.height + 8f
-
-        canvas.withTranslation(padding.toFloat(), drawY) { typeLayout.draw(this) }
-        drawY += typeLayout.height + 12f
-
-        if (ditheredArt != null && imgHeight > 0) {
-            val srcRect = Rect(0, 0, ditheredArt.width, ditheredArt.height)
-            val destRect = Rect(padding, drawY.toInt(), padding + textWidth, drawY.toInt() + imgHeight)
-            canvas.drawBitmap(ditheredArt, srcRect, destRect, Paint(Paint.FILTER_BITMAP_FLAG))
-            drawY += imgHeight + 12f
-        }
-
-        canvas.withTranslation(padding.toFloat(), drawY) { oracleLayout.draw(this) }
-        drawY += oracleLayout.height
-
-        if (ptLayout != null) {
-            drawY += 8f
-            canvas.withTranslation(padding.toFloat(), drawY) { ptLayout.draw(this) }
-            drawY += ptLayout.height
+        drawY = primaryBlock.draw(canvas, padding.toFloat(), drawY, artGap) { c, gapY ->
+            if (ditheredArt != null && imgHeight > 0) {
+                val srcRect = Rect(0, 0, ditheredArt.width, ditheredArt.height)
+                val destRect = Rect(padding, gapY.toInt(), padding + textWidth, gapY.toInt() + imgHeight)
+                c.drawBitmap(ditheredArt, srcRect, destRect, Paint(Paint.FILTER_BITMAP_FLAG))
+            }
         }
 
         secondaryBlocks.forEach { block ->
             drawY += SECONDARY_FACE_GAP_PX
-
-            canvas.withTranslation(padding.toFloat(), drawY) { block.titleRow.draw(this) }
-            drawY += block.titleRow.height + 8f
-
-            canvas.withTranslation(padding.toFloat(), drawY) { block.typeLayout.draw(this) }
-            drawY += block.typeLayout.height + 12f
-
-            canvas.withTranslation(padding.toFloat(), drawY) { block.oracleLayout.draw(this) }
-            drawY += block.oracleLayout.height
-
-            if (block.ptLayout != null) {
-                drawY += 8f
-                canvas.withTranslation(padding.toFloat(), drawY) { block.ptLayout.draw(this) }
-                drawY += block.ptLayout.height
-            }
+            drawY = block.draw(canvas, padding.toFloat(), drawY)
         }
 
         return resultBitmap
     }
 
-    /** Measured layouts for one [SecondaryFace] block, reused between the measure and draw passes. */
-    private data class SecondaryFaceLayout(
+    /**
+     * One face's title/type/oracle/[power-toughness] block: the unit repeated for the primary
+     * face and for every [SecondaryFace] on a split/flip/adventure slip. Kept as measured layouts
+     * so the measure and draw passes can never drift out of sync with each other.
+     */
+    private class FaceBlock(
         val titleRow: TitleRow,
         val typeLayout: StaticLayout,
         val oracleLayout: StaticLayout,
         val ptLayout: StaticLayout?
-    )
+    ) {
+        /** Y position after this block, given [extraGap] inserted between the type and oracle text. */
+        fun advance(startY: Float, extraGap: Float = 0f): Float {
+            var y = startY + titleRow.height + 8f
+            y += typeLayout.height + 12f + extraGap
+            y += oracleLayout.height
+            if (ptLayout != null) y += 8f + ptLayout.height
+            return y
+        }
+
+        /**
+         * Draws this block starting at [startY], returning the Y position after it. [extraGap]
+         * must match the value passed to [advance] for the same block; [drawGap] is invoked with
+         * the gap's Y position (used by the primary face to place its art between type and oracle).
+         */
+        fun draw(
+            canvas: Canvas,
+            padding: Float,
+            startY: Float,
+            extraGap: Float = 0f,
+            drawGap: (Canvas, Float) -> Unit = { _, _ -> }
+        ): Float {
+            var y = startY
+            canvas.withTranslation(padding, y) { titleRow.draw(this) }
+            y += titleRow.height + 8f
+
+            canvas.withTranslation(padding, y) { typeLayout.draw(this) }
+            y += typeLayout.height + 12f
+
+            if (extraGap > 0f) {
+                drawGap(canvas, y)
+                y += extraGap
+            }
+
+            canvas.withTranslation(padding, y) { oracleLayout.draw(this) }
+            y += oracleLayout.height
+
+            if (ptLayout != null) {
+                y += 8f
+                canvas.withTranslation(padding, y) { ptLayout.draw(this) }
+                y += ptLayout.height
+            }
+            return y
+        }
+    }
+
+    private fun measureFaceBlock(
+        name: String,
+        manaCost: String?,
+        typeLine: String?,
+        oracleText: String?,
+        power: String?,
+        toughness: String?,
+        textWidth: Int,
+        titlePaint: TextPaint,
+        typePaint: TextPaint,
+        oraclePaint: TextPaint,
+        ptPaint: TextPaint
+    ): FaceBlock {
+        val titleRow = buildTitleRow(name, safeManaCost(manaCost), textWidth, titlePaint)
+
+        val typeText = typeLine ?: ""
+        val typeLayout = StaticLayout.Builder.obtain(typeText, 0, typeText.length, typePaint, textWidth).build()
+
+        val oracleTextSafe = oracleText ?: ""
+        val oracleLayout = StaticLayout.Builder
+            .obtain(oracleTextSafe, 0, oracleTextSafe.length, oraclePaint, textWidth)
+            .build()
+
+        val ptLayout = if (!power.isNullOrEmpty() && !toughness.isNullOrEmpty()) {
+            val ptText = "$power/$toughness"
+            StaticLayout.Builder.obtain(ptText, 0, ptText.length, ptPaint, textWidth)
+                .setAlignment(Layout.Alignment.ALIGN_OPPOSITE)
+                .build()
+        } else {
+            null
+        }
+
+        return FaceBlock(titleRow, typeLayout, oracleLayout, ptLayout)
+    }
 
     /**
      * Name flush left, mana cost flush right - one row, matching how a physical card (and the

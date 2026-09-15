@@ -221,11 +221,15 @@ class ProxyGeneratorViewModel(
     // ------------------------------------------------------------------
 
     fun fetchRandomCard() {
-        generateProxy { repository.getRandomCard(_uiState.value.isFunny) }
+        generateProxy(notFoundMessage = "No random card found - try again") {
+            repository.getRandomCard(_uiState.value.isFunny)
+        }
     }
 
     fun fetchRandomNonLand() {
-        generateProxy { repository.getRandomNonLandCard(_uiState.value.isFunny) }
+        generateProxy(notFoundMessage = "No random card found - try again") {
+            repository.getRandomNonLandCard(_uiState.value.isFunny)
+        }
     }
 
     /**
@@ -238,10 +242,12 @@ class ProxyGeneratorViewModel(
     fun fetchCardByName(name: String) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
-        generateProxy { repository.getCardByName(trimmed) }
+        generateProxy(notFoundMessage = "No card found by that name") {
+            repository.getCardByName(trimmed)
+        }
     }
 
-    private fun generateProxy(fetchBlock: suspend () -> ScryfallCard) {
+    private fun generateProxy(notFoundMessage: String, fetchBlock: suspend () -> ScryfallCard) {
         reditherJob?.cancel()
         viewModelScope.launch {
             _uiState.update {
@@ -301,7 +307,7 @@ class ProxyGeneratorViewModel(
             } catch (e: Exception) {
                 Log.e(TAG, "Proxy generation failed", e)
                 val message = if (e is HttpException && e.code() == 404) {
-                    "No card found by that name"
+                    notFoundMessage
                 } else {
                     e.message ?: "Unknown error"
                 }
