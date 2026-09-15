@@ -220,8 +220,16 @@ class ProxyGeneratorViewModel(
     // Fetching
     // ------------------------------------------------------------------
 
+    /** Replays whatever fetch last failed - see the error state's Retry button in ProxyPreview. */
+    private var lastFetchAction: (() -> Unit)? = null
+
+    fun retryLastFetch() {
+        lastFetchAction?.invoke()
+    }
+
     /** Always excludes lands - see [CardRepository.getRandomCard]. */
     fun fetchRandomCard() {
+        lastFetchAction = ::fetchRandomCard
         generateProxy(notFoundMessage = "No random card found - try again") {
             repository.getRandomCard(_uiState.value.isFunny)
         }
@@ -229,6 +237,7 @@ class ProxyGeneratorViewModel(
 
     /** MomirVig mode: a random creature of [cmc] - see [CardRepository.getMomirVigCreature]. */
     fun fetchMomirVigCreature(cmc: Int) {
+        lastFetchAction = { fetchMomirVigCreature(cmc) }
         generateProxy(notFoundMessage = "No creature found at CMC $cmc") {
             repository.getMomirVigCreature(cmc, _uiState.value.isFunny)
         }
@@ -244,6 +253,7 @@ class ProxyGeneratorViewModel(
     fun fetchCardByName(name: String) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
+        lastFetchAction = { fetchCardByName(trimmed) }
         generateProxy(notFoundMessage = "No card found by that name") {
             repository.getCardByName(trimmed)
         }

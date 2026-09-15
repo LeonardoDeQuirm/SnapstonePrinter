@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.LinkOff
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Print
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.*
@@ -197,6 +198,7 @@ fun ProxyGeneratorScreen(
                         )
                         ProxyPreview(
                             uiState = uiState,
+                            onRetry = viewModel::retryLastFetch,
                             pagerState = pagerState,
                             // Height-bounded by the Row, so the slip scrolls internally here.
                             scrollContent = true,
@@ -238,6 +240,7 @@ fun ProxyGeneratorScreen(
                     )
                     ProxyPreview(
                         uiState = uiState,
+                        onRetry = viewModel::retryLastFetch,
                         pagerState = pagerState,
                         // The preview owns every remaining pixel: it is the whole point of the
                         // screen. weight(1f) gives it a BOUNDED height, which is also what keeps
@@ -612,6 +615,7 @@ private fun CardHeadline(
 fun ProxyPreview(
     uiState: ProxyGeneratorUiState,
     modifier: Modifier = Modifier,
+    onRetry: () -> Unit = {},
     pagerState: PagerState? = null,
     /**
      * Whether the slip content scrolls inside this component.
@@ -688,6 +692,12 @@ fun ProxyPreview(
                         color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center
                     )
+                    Spacer(Modifier.height(16.dp))
+                    FilledTonalButton(onClick = onRetry) {
+                        Icon(Icons.Rounded.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Retry")
+                    }
                 }
             } else if (uiState.slips.isNotEmpty()) {
                 Column(
