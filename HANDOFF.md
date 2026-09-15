@@ -65,8 +65,10 @@ persists it, the next PRINT for a fresh card skips straight to that app (no choo
 
 ## 2. Immutable spec — the user is firm on all of these
 
-- **384px output width.** 384 dots = 57mm at 203dpi. This is the printer's native width. Do
-  not parameterise it away or "scale to fit".
+- **384px output width.** 384 dots ≈ 48mm at 200dpi - the standard printable width for the
+  ~58mm-roll thermal printers this app targets (confirmed 2026-09-15 against the user's actual
+  printer, a Core Innovations CTP500: 200 DPI per its official spec sheet, ~55mm paper roll).
+  This is the printer's native width. Do not parameterise it away or "scale to fit".
 - **Floyd-Steinberg dithering, 7/3/5/1 ÷ 16 kernel.** Exactly this kernel. Not Atkinson, not
   ordered/Bayer, not a threshold.
 - **Frameless native Canvas text on pure white.** No borders, no card frame, no background
@@ -342,7 +344,7 @@ Worth reading for ideas, not for architecture.
 
 What it does:
 - Prints name + mana cost **justified on ONE line** (name left-aligned, cost right-aligned).
-- Same physical target: **384 dots / 203dpi / 57mm**.
+- Same physical target: **384 dots / 200dpi / ~48mm printable (58mm roll)**.
 - Dithers to mono.
 - Uses **Scryfall bulk data** rather than per-card `cards/random` calls — a meaningfully
   different approach that avoids rate limiting entirely.
