@@ -76,6 +76,13 @@ enum class AppMode(val displayName: String) {
     MOMIR_VIG("MomirVig")
 }
 
+/**
+ * The app's one screen. Owns the compact-vs-expanded layout switch (phone column vs tablet
+ * side-by-side), hosts every bottom sheet (tone, history, card search, MomirVig's CMC picker),
+ * and runs the `LaunchedEffect` that turns a queued [SlipDispatch] into an actual `ACTION_SEND` -
+ * straight to the remembered printer app when possible, falling back to the system chooser (and
+ * forgetting a dead remembered target) otherwise.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProxyGeneratorScreen(
@@ -329,6 +336,13 @@ private fun chosenComponentSender(context: Context) = PendingIntent.getBroadcast
     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
 ).intentSender
 
+/**
+ * The app's title bar: the game-mode switcher, the roll/pick action, and the overflow menu.
+ *
+ * Deliberately where the destructive-ish re-roll action lives - it throws away the current card,
+ * so it belongs up here, out of thumb reach, rather than next to PRINT or in a FAB where it could
+ * be hit by accident.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProxyTopBar(

@@ -5,6 +5,7 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 interface ScryfallApiService {
+    /** [query] is a Scryfall search string - see [ScryfallQueryBuilder]. */
     @GET("cards/random")
     suspend fun getRandomCard(
         @Query("q") query: String? = null

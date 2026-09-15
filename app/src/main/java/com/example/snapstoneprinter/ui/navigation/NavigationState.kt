@@ -49,6 +49,10 @@ fun rememberNavigationState(
 /**
  * State holder for navigation state.
  *
+ * Supports multiple independent top-level back stacks (e.g. bottom-nav-style tabs), though this
+ * app currently defines only one route ([ProxyGeneratorRoute] in `Routes.kt`) - the multi-route
+ * machinery here is unused today, not dead code to remove.
+ *
  * @param startRoute - the start route. The user will exit the app through this route.
  * @param topLevelRoute - the current top level route
  * @param backStacks - the back stacks for each top level route

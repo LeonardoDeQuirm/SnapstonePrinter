@@ -73,6 +73,7 @@ data class SlipDispatch(
     val total: Int get() = uris.size
 }
 
+/** Single immutable snapshot the whole screen renders from - see [ProxyGeneratorViewModel.uiState]. */
 data class ProxyGeneratorUiState(
     val currentCard: ScryfallCard? = null,
     /**
